@@ -7,17 +7,18 @@ import time
 import datetime
 import random
 import pathlib
+import logging
 
 # daemon server
 def recordtime():
     # recording
-    sys.stdout.write("daemon[{}] is recording log\n".format(os.getpid()))
+    logging.debug("daemon[{}] is recording log\n".format(os.getpid()))
     # for system feature
     num = random.randint(10, 20)
     while num > 0:
         # proc for loop
         # get current time and print
-        sys.stdout.write("{}: doing something...\n".format(time.asctime(time.localtime())))
+        logging.debug("{}: doing something...\n".format(time.asctime(time.localtime())))
         sys.stdout.flush()
         time.sleep(4)
 
@@ -36,19 +37,27 @@ def generatefilenamewithdir(filename="/usr/log/python-1700-1-1/mydaemon.py"):
 
 # create daemon process
 def mydaemon(stdin="/dev/null", stdout="/dev/null", stderr="/dev/null"):
-    print("daemon process starting...")
+    # generate filename with dir
+    stdout = generatefilenamewithdir(stdout)
+    # set logging
+    logging.basicConfig(filename=stdout,
+                        level=logging.DEBUG,
+                        datefmt='%Y-%m-%d %H:%M:%S',
+                        format='%(asctime)s %(name)-8s %(levelname)-8s [line: %(lineno)d] %(message)s')
+
+    logging.debug("daemon process starting...")
     try:
         # create first subprocess
         pid = os.fork()
         # first prarent process
         if pid > 0:
-            print("first parent process exit")
+            logging.debug("first parent process exit")
             exit(0)
     # for error
     except OSError as oserr:
-        sys.strerr.write("create first subprocess failed, reason: {}\n".format(oserr))
+        logging.error("create first subprocess failed, reason: {}".format(oserr))
         sys.exit(1)
-    
+
     # config env
     os.chdir("/")
     os.umask(0)
@@ -58,21 +67,18 @@ def mydaemon(stdin="/dev/null", stdout="/dev/null", stderr="/dev/null"):
         # create second subprocess // daemon
         pid = os.fork()
         if pid > 0:
-            print("second parent process exit")
+            logging.debug("second parent process exit")
             exit(0)
     except OSError as oserr:
-        sys.strerr.write("create subprocess failed, reason: {}\n".format(oserr))
+        logging.error("create subprocess failed, reason: {}\n".format(oserr))
         sys.exit(1)
 
     # notify daemon is runging
-    sys.stdout.write("daemon[{}] runing...\n".format(os.getpid()))
+    logging.debug("daemon[{}] runing...\n".format(os.getpid()))
 
     # clean buffer
     sys.stdout.flush()
     sys.stderr.flush()
-
-    # generate filename with dir
-    stdout = generatefilenamewithdir(stdout)
 
     # create new fd
     newin = open(stdin,"r")
